@@ -14,34 +14,46 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 
 public class SavePersonHandler implements RequestHandler<PersonRequest, PersonResponse> {
 
-	private DynamoDB dynamoDb;
+    private DynamoDB dynamoDb;
 
-	private String DYNAMODB_TABLE_NAME = "persons";
+    private String TABLE_NAME = "persons";
 
-	public PersonResponse handleRequest(PersonRequest personRequest, Context context) {
+    public PersonResponse handleRequest(PersonRequest personRequest, Context context) {
+        LambdaLogger logger = context.getLogger();
 
-		LambdaLogger logger = context.getLogger();
 
-		logger.log("----------> Get new person with name " + personRequest.getFirstName());
+        logger.log("----------> Get new person with name " + personRequest.getFirstName());
 
-		this.initDynamoDbClient();
+        this.initDynamoDbClient();
 
-		persistData(personRequest);
+        persistData(personRequest);
 
-		PersonResponse personResponse = new PersonResponse();
-		personResponse.setMessage("The person has been saved.");
-		return personResponse;
-	}
+        PersonResponse personResponse = new PersonResponse();
+        personResponse.setMessage("The person has been saved.");
+        return personResponse;
+    }
 
-	private PutItemOutcome persistData(PersonRequest personRequest) throws ConditionalCheckFailedException {
-		return this.dynamoDb.getTable(DYNAMODB_TABLE_NAME).putItem(new PutItemSpec().withItem(new Item()
-				.withNumber("id", personRequest.getId()).withString("firstName", personRequest.getFirstName())
-				.withString("lastName", personRequest.getLastName()).withString("city", personRequest.getCity())));
-	}
+    private PutItemOutcome persistData(PersonRequest personRequest) throws ConditionalCheckFailedException {
+        String cityCSV;
+        cityCSV = ReadCSV(personRequest.getId());
+        if (!cityCSV.equals("") && !cityCSV.equals(null))personRequest.setCity(cityCSV);
 
-	private void initDynamoDbClient() {
+        if (  cityCSV.equals(null) || cityCSV.equals("")){
+            return this.dynamoDb.getTable(TABLE_NAME).putItem(new PutItemSpec().withItem(new Item()
+                    .withNumber("id", personRequest.getId()).withString("firstName", personRequest.getFirstName())
+                    .withString("lastName", personRequest.getLastName())));
 
-		AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.EU_CENTRAL_1).build();
-		this.dynamoDb = new DynamoDB(ddb);
-	}
+        }
+        return this.dynamoDb.getTable(TABLE_NAME).putItem(new PutItemSpec().withItem(new Item()
+                .withNumber("id", personRequest.getId()).withString("firstName", personRequest.getFirstName())
+                .withString("lastName", personRequest.getLastName()).withString("city", personRequest.getCity())));
+    }
+    public String ReadCSV(int id) {
+        return "Paris";
+    }
+    private void initDynamoDbClient() {
+
+        AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.EU_CENTRAL_1).build();
+        this.dynamoDb = new DynamoDB(ddb);
+    }
 }
