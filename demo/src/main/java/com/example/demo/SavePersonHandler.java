@@ -11,22 +11,37 @@ import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.SQSEvent;
+import com.google.gson.Gson;
 
-public class SavePersonHandler implements RequestHandler<PersonRequest, PersonResponse> {
-
+public class SavePersonHandler implements RequestHandler<SQSEvent, PersonResponse> {
     private DynamoDB dynamoDb;
 
     private String TABLE_NAME = "persons";
 
-    public PersonResponse handleRequest(PersonRequest personRequest, Context context) {
+    public PersonResponse handleRequest(SQSEvent event, Context context) {
         LambdaLogger logger = context.getLogger();
 
 
-        logger.log("----------> Get new person with name " + personRequest.getFirstName());
+        logger.log("----------> Get new event" + event.toString());
 
         this.initDynamoDbClient();
 
-        persistData(personRequest);
+        Gson gson = new Gson();
+        PersonRequest personRequest;
+
+
+        try {
+            for (SQSEvent.SQSMessage message : event.getRecords()) {
+                String input = message.getBody();
+                logger.log("----------> Get new input" + input);
+                personRequest = gson.fromJson(input, PersonRequest.class);
+                persistData(personRequest);
+            }
+        } catch (Exception ex) {
+            logger.log("Exception handling batch seed request.");
+            throw ex;
+        }
 
         PersonResponse personResponse = new PersonResponse();
         personResponse.setMessage("The person has been saved.");
@@ -36,9 +51,9 @@ public class SavePersonHandler implements RequestHandler<PersonRequest, PersonRe
     private PutItemOutcome persistData(PersonRequest personRequest) throws ConditionalCheckFailedException {
         String cityCSV;
         cityCSV = ReadCSV(personRequest.getId());
-        if (!cityCSV.equals("") && !cityCSV.equals(null))personRequest.setCity(cityCSV);
+        if (!cityCSV.equals("") && !cityCSV.equals(null)) personRequest.setCity(cityCSV);
 
-        if (  cityCSV.equals(null) || cityCSV.equals("")){
+        if (cityCSV.equals(null) || cityCSV.equals("")) {
             return this.dynamoDb.getTable(TABLE_NAME).putItem(new PutItemSpec().withItem(new Item()
                     .withNumber("id", personRequest.getId()).withString("firstName", personRequest.getFirstName())
                     .withString("lastName", personRequest.getLastName())));
@@ -48,9 +63,11 @@ public class SavePersonHandler implements RequestHandler<PersonRequest, PersonRe
                 .withNumber("id", personRequest.getId()).withString("firstName", personRequest.getFirstName())
                 .withString("lastName", personRequest.getLastName()).withString("city", personRequest.getCity())));
     }
+
     public String ReadCSV(int id) {
         return "Paris";
     }
+
     private void initDynamoDbClient() {
 
         AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.EU_CENTRAL_1).build();
