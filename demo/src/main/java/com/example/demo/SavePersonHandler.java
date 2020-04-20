@@ -49,7 +49,7 @@ public class SavePersonHandler implements RequestHandler<SQSEvent, PersonRespons
     }
 
     private PutItemOutcome persistData(PersonRequest personRequest) throws ConditionalCheckFailedException, IOException {
-        String cityCSV;
+        
         CSVReader csvReader = new CSVReader();
         personRequest.setCity(csvReader.ReadCSV(personRequest.getId()));
 
