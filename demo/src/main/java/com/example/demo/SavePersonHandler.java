@@ -51,21 +51,12 @@ public class SavePersonHandler implements RequestHandler<SQSEvent, PersonRespons
     private PutItemOutcome persistData(PersonRequest personRequest) throws ConditionalCheckFailedException, IOException {
         String cityCSV;
         CSVReader csvReader = new CSVReader();
-        cityCSV = csvReader.ReadCSV(personRequest.getId());
-        if (!cityCSV.equals("") && !cityCSV.equals(null)) personRequest.setCity(cityCSV);
+        personRequest.setCity(csvReader.ReadCSV(personRequest.getId()));
 
-        if (cityCSV.equals(null) || cityCSV.equals("")) {
-            return this.dynamoDb.getTable(TABLE_NAME).putItem(new PutItemSpec().withItem(new Item()
-                    .withNumber("id", personRequest.getId()).withString("firstName", personRequest.getFirstName())
-                    .withString("lastName", personRequest.getLastName())));
-
-        }
         return this.dynamoDb.getTable(TABLE_NAME).putItem(new PutItemSpec().withItem(new Item()
                 .withNumber("id", personRequest.getId()).withString("firstName", personRequest.getFirstName())
                 .withString("lastName", personRequest.getLastName()).withString("city", personRequest.getCity())));
     }
-
-
 
     private void initDynamoDbClient() {
         AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.EU_CENTRAL_1).build();
